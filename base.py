@@ -3,7 +3,6 @@ import logging
 import sys
 
 from bs4 import BeautifulSoup
-from torofilm import Torofilm
 
 from dootheme import Dootheme
 from helper import helper
