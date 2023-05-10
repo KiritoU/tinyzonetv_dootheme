@@ -12,7 +12,7 @@ from settings import CONFIG
 
 logging.basicConfig(format="%(asctime)s %(levelname)s:%(message)s", level=logging.INFO)
 
-EPISODE_COVER = False
+EPISODE_COVER = CONFIG.EPISODE_COVER
 
 
 TAXONOMIES = {
@@ -146,6 +146,7 @@ class Dootheme:
     def generate_film_data(
         self,
         title,
+        slug,
         description,
         post_type,
         trailer_id,
@@ -155,6 +156,7 @@ class Dootheme:
         post_data = {
             "description": description,
             "title": title,
+            "slug": slug,
             "post_type": post_type,
             # "id": "202302",
             "youtube_id": f"[{trailer_id}]",
@@ -208,7 +210,7 @@ class Dootheme:
             "open",
             "open",
             "",
-            slugify(self.format_slug(post_data["title"])),
+            post_data["slug"],
             "",
             "",
             timeupdate.strftime("%Y/%m/%d %H:%M:%S"),
@@ -304,7 +306,7 @@ class Dootheme:
             helper.error_log(f"Failed to insert film\n{e}")
 
     def insert_root_film(self) -> list:
-        condition_post_name = slugify(self.film["post_title"])
+        condition_post_name = self.film["slug"]
         condition = f"""post_name = '{condition_post_name}' AND post_type='{self.film["post_type"]}'"""
         be_post = database.select_all_from(
             table=f"{CONFIG.TABLE_PREFIX}posts", condition=condition
@@ -313,6 +315,7 @@ class Dootheme:
             logging.info(f'Inserting root film: {self.film["post_title"]}')
             post_data = self.generate_film_data(
                 self.film["post_title"],
+                self.film["slug"],
                 self.film["description"],
                 self.film["post_type"],
                 self.film["trailer_id"],
@@ -366,9 +369,12 @@ class Dootheme:
                 self.film["post_title"]
                 + f" {self.film['season_number']}x{episode_number}"
             )
-            condition_post_name = slugify(episode_self_title)
+            episode_self_slug = (
+                self.film["slug"] + f" {self.film['season_number']}x{episode_number}"
+            )
+            episode_self_slug = slugify(episode_self_slug)
             condition = (
-                f"""post_name = '{condition_post_name}' AND post_type='episodes'"""
+                f"""post_name = '{episode_self_slug}' AND post_type='episodes'"""
             )
             be_post = database.select_all_from(
                 table=f"{CONFIG.TABLE_PREFIX}posts", condition=condition
@@ -377,6 +383,7 @@ class Dootheme:
                 logging.info(f"Inserting episodes: {episode_self_title}")
                 post_data = self.generate_film_data(
                     episode_self_title,
+                    episode_self_slug,
                     "",
                     "episodes",
                     self.film["trailer_id"],
@@ -445,16 +452,20 @@ class Dootheme:
                 self.insert_postmeta(episode_postmeta)
 
     def insert_season(self, post_id: int):
-        season_name = self.film["post_title"] + ": Season " + self.film["season_number"]
-        condition_post_name = slugify(season_name)
-        condition = f"""post_name = '{condition_post_name}' AND post_type='seasons'"""
+        season_title = (
+            self.film["post_title"] + ": Season " + self.film["season_number"]
+        )
+        season_slug = self.film["slug"] + ": Season " + self.film["season_number"]
+        season_slug = slugify(season_slug)
+        condition = f"""post_name = '{season_slug}' AND post_type='seasons'"""
         be_post = database.select_all_from(
             table=f"{CONFIG.TABLE_PREFIX}posts", condition=condition
         )
         if not be_post:
-            logging.info(f"Inserting season: {season_name}")
+            logging.info(f"Inserting season: {season_title}")
             post_data = self.generate_film_data(
-                season_name,
+                season_title,
+                season_slug,
                 self.film["description"],
                 "seasons",
                 self.film["trailer_id"],
